@@ -1,4 +1,6 @@
 import os
+import json
+import socket
 
 import aiohttp
 import requests
@@ -77,6 +79,33 @@ def convert_to_small_caps(text):
 
 async def is_heroku():
     return "heroku" in socket.getfqdn()
+
+
+ADC_CONFIG_FILE = "adc_config.json"
+
+
+def get_adc_config(app_name):
+    if not os.path.exists(ADC_CONFIG_FILE):
+        return None
+    try:
+        with open(ADC_CONFIG_FILE, "r") as f:
+            data = json.load(f)
+        return data.get(app_name)
+    except Exception:
+        return None
+
+
+def set_adc_config(app_name, repo_url, branch):
+    data = {}
+    if os.path.exists(ADC_CONFIG_FILE):
+        try:
+            with open(ADC_CONFIG_FILE, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+    data[app_name] = {"repo_url": repo_url, "branch": branch}
+    with open(ADC_CONFIG_FILE, "w") as f:
+        json.dump(data, f, indent=4)
 
 
 async def paste_neko(code: str):
@@ -267,6 +296,11 @@ async def app_options(client, callback_query):
             ),
             InlineKeyboardButton(
                 convert_to_small_caps("Re-Deploy"), callback_data=f"redeploy:{app_name}"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                convert_to_small_caps("Adc Re-Deploy"), callback_data=f"adc_redeploy:{app_name}"
             ),
         ],
         [
@@ -599,6 +633,167 @@ async def get_app_logs(client, callback_query):
             convert_to_small_caps(
                 f"**Failed to retrieve logs for** {app_name}: {result}"
             )
+        )
+
+
+# ADC Re-Deploy Main Menu
+@app.on_callback_query(filters.regex(r"^adc_redeploy:(.+)") & filters.sudo)
+async def adc_redeploy_callback(client, callback_query):
+    app_name = callback_query.data.split(":")[1]
+    config = get_adc_config(app_name)
+
+    if config:
+        repo = config["repo_url"]
+        branch = config["branch"]
+        buttons = [
+            [
+                InlineKeyboardButton(
+                    convert_to_small_caps("1-Click Deploy"),
+                    callback_data=f"adc_execute:{app_name}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    convert_to_small_caps("Change Settings"),
+                    callback_data=f"adc_setup:{app_name}",
+                ),
+                InlineKeyboardButton(
+                    convert_to_small_caps("Back"), callback_data=f"app:{app_name}"
+                ),
+            ],
+        ]
+        await callback_query.message.edit_text(
+            convert_to_small_caps(
+                f"**ADC Settings Found!**\n\n**Repo:** `{repo}`\n**Branch:** `{branch}`\n\nClick below to deploy instantly or change settings."
+            ),
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+    else:
+        await adc_setup_callback(client, callback_query)
+
+
+# ADC Setup Menu
+@app.on_callback_query(filters.regex(r"^adc_setup:(.+)") & filters.sudo)
+async def adc_setup_callback(client, callback_query):
+    app_name = callback_query.data.split(":")[1]
+    buttons = [
+        [
+            InlineKeyboardButton(
+                convert_to_small_caps("Use UPSTREAM_REPO"),
+                callback_data=f"adc_use_upstream:{app_name}",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                convert_to_small_caps("Use External Repo"),
+                callback_data=f"adc_use_external:{app_name}",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                convert_to_small_caps("Back"), callback_data=f"adc_redeploy:{app_name}"
+            )
+        ],
+    ]
+    await callback_query.message.edit_text(
+        convert_to_small_caps("Select source for ADC 1-Click Re-Deploy:"),
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+# ADC Set Upstream
+@app.on_callback_query(filters.regex(r"^adc_use_upstream:(.+)") & filters.sudo)
+async def adc_use_upstream_callback(client, callback_query):
+    chat_id = callback_query.message.chat.id
+    app_name = callback_query.data.split(":")[1]
+    upstream_repo = await get_heroku_config(app_name)
+
+    if not upstream_repo:
+        return await callback_query.answer("No upstream repo found!", show_alert=True)
+
+    branches = await fetch_repo_branches(upstream_repo)
+    if not branches:
+        return await callback_query.answer("No branches found!", show_alert=True)
+
+    branch_list = "\n".join(branches)
+    response = await app.ask(
+        chat_id,
+        convert_to_small_caps(
+            f"**Available branches:**\n\n`{branch_list}`\n\nReply with the branch name to set for ADC."
+        ),
+        timeout=300,
+    )
+
+    if response.text in branches:
+        set_adc_config(app_name, upstream_repo, response.text)
+        await response.reply_text(
+            convert_to_small_caps(
+                f"✅ **ADC Config Saved!**\n\n**App:** `{app_name}`\n**Branch:** `{response.text}`\n\nYou can now use 1-click deploy."
+            )
+        )
+    else:
+        await response.reply_text(convert_to_small_caps("Invalid branch name."))
+
+
+# ADC Set External
+@app.on_callback_query(filters.regex(r"^adc_use_external:(.+)") & filters.sudo)
+async def adc_use_external_callback(client, callback_query):
+    chat_id = callback_query.message.chat.id
+    app_name = callback_query.data.split(":")[1]
+
+    repo_response = await app.ask(
+        chat_id, convert_to_small_caps("Please provide the External Repo URL."), timeout=300
+    )
+    repo_url = repo_response.text
+    branches = await fetch_repo_branches(repo_url)
+
+    if not branches:
+        return await repo_response.reply_text(convert_to_small_caps("Invalid repo or no branches found."))
+
+    branch_list = "\n".join(branches)
+    branch_response = await app.ask(
+        chat_id,
+        convert_to_small_caps(
+            f"**Available branches:**\n\n`{branch_list}`\n\nReply with the branch name to set for ADC."
+        ),
+        timeout=300,
+    )
+
+    if branch_response.text in branches:
+        set_adc_config(app_name, repo_url, branch_response.text)
+        await branch_response.reply_text(
+            convert_to_small_caps(
+                f"✅ **ADC Config Saved!**\n\n**App:** `{app_name}`\n**Repo:** `{repo_url}`\n**Branch:** `{branch_response.text}`"
+            )
+        )
+    else:
+        await branch_response.reply_text(convert_to_small_caps("Invalid branch name."))
+
+
+# ADC 1-Click Execution
+@app.on_callback_query(filters.regex(r"^adc_execute:(.+)") & filters.sudo)
+async def adc_execute_callback(client, callback_query):
+    app_name = callback_query.data.split(":")[1]
+    config = get_adc_config(app_name)
+
+    if not config:
+        return await callback_query.answer("ADC Config not found!", show_alert=True)
+
+    repo_url = config["repo_url"]
+    branch = config["branch"]
+
+    await callback_query.message.edit_text(
+        convert_to_small_caps(f"🚀 **Starting 1-Click Deploy for** `{app_name}`...\n\n**Branch:** `{branch}`")
+    )
+
+    success = await redeploy_heroku_app(app_name, repo_url, branch)
+    if success:
+        await callback_query.message.edit_text(
+            convert_to_small_caps(f"✅ **Deployment started successfully for** `{app_name}`!")
+        )
+    else:
+        await callback_query.message.edit_text(
+            convert_to_small_caps(f"❌ **Failed to start deployment for** `{app_name}`. Please check logs.")
         )
 
 

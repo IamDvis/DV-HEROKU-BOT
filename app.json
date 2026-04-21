@@ -11,8 +11,6 @@
     "telegram-bot",
     "pyrogram"
     ],
-    
-    "stack": "container",
     "env": {
       "API_ID": {
         "description": "Get this value from https://my.telegram.org",
@@ -41,13 +39,10 @@
       }
     },
     "buildpacks": [
-          {
-              "url": "heroku/python"
-          },
-          {
-              "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git"
-          }
-      ],
+        {
+            "url": "heroku/python"
+        }
+    ],
       "formation": {
           "worker": {
               "quantity": 1,
