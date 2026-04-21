@@ -1,9 +1,16 @@
+try:
+    import uvloop
+    uvloop.install()
+except ImportError:
+    pass
+
 import logging
 import asyncio
 import importlib
 
 from pyrogram import idle
 
+# Import app after uvloop.install() to ensure the loop policy is inherited correctly
 from DVIS import app
 from DVIS.plugins import ALL_MODULES
 
@@ -28,12 +35,5 @@ async def main():
     await app.stop()
 
 if __name__ == "__main__":
-    try:
-        import uvloop
-        uvloop.install()
-    except ImportError:
-        pass
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
