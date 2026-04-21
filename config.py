@@ -16,6 +16,12 @@ BOT_TOKEN = getenv("BOT_TOKEN", None)
 
 HEROKU_API_KEY = getenv("HEROKU_API_KEY", "")
 
+UPSTREAM_REPO = getenv(
+    "UPSTREAM_REPO", "https://github.com/IamDvis/DV-MUSIC"
+)
+
+UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "master")
+
 OWNER_ID = list(
     map(int, getenv("OWNER_ID", "1679112664").split())
 )
