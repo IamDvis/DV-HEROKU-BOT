@@ -26,15 +26,16 @@ logging.getLogger("pymongo").setLevel(logging.ERROR)
 log = logging.getLogger("DVIS-HEROKU-BOT")
 
 async def main():
-    log.info("Starting bot...")
-    await app.start()
     for all_module in ALL_MODULES:
-        imported_module = importlib.import_module("DVIS.plugins" + all_module)
-    log.info("Bot Started")
+        importlib.import_module("DVIS.plugins" + all_module)
+    log.info("Bot Started successfully.")
     await idle()
-    await app.stop()
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(main())
+    try:
+        import uvloop
+        uvloop.install()
+    except ImportError:
+        pass
+
+    app.run(main())
