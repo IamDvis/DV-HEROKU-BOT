@@ -779,17 +779,19 @@ async def adc_execute_callback(client, callback_query):
     repo_url = config["repo_url"]
     branch = config["branch"]
 
-    await callback_query.message.edit_text(
+    await callback_query.answer("Starting deployment...", show_alert=False)
+
+    msg = await callback_query.message.reply_text(
         convert_to_small_caps(f"🚀 **Starting 1-Click Deploy for** `{app_name}`...\n\n**Branch:** `{branch}`")
     )
 
     success = await redeploy_heroku_app(app_name, repo_url, branch)
     if success:
-        await callback_query.message.edit_text(
+        await msg.edit_text(
             convert_to_small_caps(f"✅ **Deployment started successfully for** `{app_name}`!")
         )
     else:
-        await callback_query.message.edit_text(
+        await msg.edit_text(
             convert_to_small_caps(f"❌ **Failed to start deployment for** `{app_name}`. Please check logs.")
         )
 
