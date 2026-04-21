@@ -1,3 +1,14 @@
+import inspect
+
+# Monkey-patch inspect to correctly identify Pyromod's async handler.
+# This prevents Kurigram from dispatching it to a worker thread, which fixes the "different loop" RuntimeError.
+_old_is_coro = inspect.iscoroutinefunction
+def _new_is_coro(obj):
+    if getattr(obj, "__name__", "") == "resolve_future_or_callback":
+        return True
+    return _old_is_coro(obj)
+inspect.iscoroutinefunction = _new_is_coro
+
 import pyromod.listen  # noqa
 from pyrogram import Client, filters
 from config import *
