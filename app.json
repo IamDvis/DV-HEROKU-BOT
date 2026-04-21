@@ -36,6 +36,16 @@
         "description": "Your Heroku account's API key",
         "value": "",
         "required": false
+      },
+      "UPSTREAM_REPO": {
+        "description": "The URL of the repository you want to deploy.",
+        "value": "https://github.com/IamDvis/DV-HEROKU-BOT",
+        "required": false
+      },
+      "UPSTREAM_BRANCH": {
+        "description": "The branch name of the upstream repository.",
+        "value": "new",
+        "required": false
       }
     },
     "buildpacks": [

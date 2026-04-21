@@ -10,7 +10,7 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pyromod.exceptions import ListenerTimeout
 
 from DVIS import app
-from config import OWNER_ID as SUDOERS
+from config import OWNER_ID as SUDOERS, UPSTREAM_REPO, UPSTREAM_BRANCH
 
 # Import your MongoDB database structure
 
@@ -19,9 +19,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 HEROKU_API_URL = "https://api.heroku.com"
 HEROKU_API_KEY = os.getenv("HEROKU_API_KEY")  # Pre-defined variable
 REPO_URL = "https://github.com/IamDvis/DV-MUSIC"  # Pre-defined variable
-BUILDPACK_URL = "https://github.com/heroku/heroku-buildpack-python"
-UPSTREAM_REPO = "https://github.com/IamDvis/DV-MUSIC"  # Pre-defined variable
-UPSTREAM_BRANCH = "master"  # Pre-defined variable
 API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 
