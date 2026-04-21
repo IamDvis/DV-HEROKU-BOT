@@ -1,4 +1,3 @@
-pyromod
 aiohttp
 requests
 urllib3

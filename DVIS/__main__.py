@@ -1,12 +1,17 @@
-import logging
 import asyncio
-import importlib
 
+# Initialize event loop AT THE VERY TOP to avoid any different loop errors when importing pyromod/pyrogram
 try:
     import uvloop
     uvloop.install()
 except ImportError:
     pass
+
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+import logging
+import importlib
 
 from pyrogram import idle
 from DVIS import app
@@ -33,6 +38,4 @@ async def main():
     await app.stop()
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     loop.run_until_complete(main())
