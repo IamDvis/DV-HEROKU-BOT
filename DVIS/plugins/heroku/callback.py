@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime, timedelta, timezone
 import socket
 
 import aiohttp
@@ -633,6 +634,25 @@ async def get_app_logs(client, callback_query):
         )
 
 
+def format_time_ist(utc_time_str):
+    if not utc_time_str:
+        return "N/A"
+    try:
+        utc_dt = datetime.strptime(utc_time_str, "%Y-%m-%dT%H:%M:%SZ")
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+        ist_dt = utc_dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
+        return ist_dt.strftime("%d %b %Y, %I:%M %p")
+    except Exception:
+        return utc_time_str
+
+def get_last_deploy_time(app_name):
+    status, builds = make_heroku_requestc(f"apps/{app_name}/builds", HEROKU_API_KEY)
+    if status in [200, 206] and isinstance(builds, list) and len(builds) > 0:
+        last_build = builds[-1]
+        utc_time_str = last_build.get("updated_at") or last_build.get("created_at")
+        return format_time_ist(utc_time_str)
+    return "N/A"
+
 # ADC Re-Deploy Main Menu
 @app.on_callback_query(filters.regex(r"^adc_redeploy:(.+)") & filters.sudo)
 async def adc_redeploy_callback(client, callback_query):
@@ -642,6 +662,7 @@ async def adc_redeploy_callback(client, callback_query):
     if config:
         repo = config["repo_url"]
         branch = config["branch"]
+        last_deploy_time = get_last_deploy_time(app_name)
         buttons = [
             [
                 InlineKeyboardButton(
@@ -661,7 +682,7 @@ async def adc_redeploy_callback(client, callback_query):
         ]
         await callback_query.message.edit_text(
             convert_to_small_caps(
-                f"**ADC Settings Found!**\n\n**Repo:** `{repo}`\n**Branch:** `{branch}`\n\nClick below to deploy instantly or change settings."
+                f"**ADC Settings Found!**\n\n**App:** `{app_name}`\n**Repo:** `{repo}`\n**Branch:** `{branch}`\n**Last Deploy:** `{last_deploy_time}`\n\nClick below to deploy instantly or change settings."
             ),
             reply_markup=InlineKeyboardMarkup(buttons),
         )
