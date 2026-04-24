@@ -79,31 +79,36 @@ async def is_heroku():
     return "heroku" in socket.getfqdn()
 
 
-ADC_CONFIG_FILE = "adc_config.json"
+async def get_adc_config(app_name):
+    url = f"https://api.heroku.com/apps/{app_name}/config-vars"
+    headers = {
+        "Authorization": f"Bearer {HEROKU_API_KEY}",
+        "Accept": "application/vnd.heroku+json; version=3",
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                data = await response.json()
+                repo = data.get("ADC_REPO")
+                branch = data.get("ADC_BRANCH")
+                if repo and branch:
+                    return {"repo_url": repo, "branch": branch}
+    return None
 
-
-def get_adc_config(app_name):
-    if not os.path.exists(ADC_CONFIG_FILE):
-        return None
-    try:
-        with open(ADC_CONFIG_FILE, "r") as f:
-            data = json.load(f)
-        return data.get(app_name)
-    except Exception:
-        return None
-
-
-def set_adc_config(app_name, repo_url, branch):
-    data = {}
-    if os.path.exists(ADC_CONFIG_FILE):
-        try:
-            with open(ADC_CONFIG_FILE, "r") as f:
-                data = json.load(f)
-        except Exception:
-            data = {}
-    data[app_name] = {"repo_url": repo_url, "branch": branch}
-    with open(ADC_CONFIG_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+async def set_adc_config(app_name, repo_url, branch):
+    url = f"https://api.heroku.com/apps/{app_name}/config-vars"
+    headers = {
+        "Authorization": f"Bearer {HEROKU_API_KEY}",
+        "Accept": "application/vnd.heroku+json; version=3",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "ADC_REPO": repo_url,
+        "ADC_BRANCH": branch
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.patch(url, headers=headers, json=payload) as response:
+            return response.status == 200
 
 
 async def paste_neko(code: str):
@@ -657,7 +662,7 @@ def get_last_deploy_time(app_name):
 @app.on_callback_query(filters.regex(r"^adc_redeploy:(.+)") & filters.sudo)
 async def adc_redeploy_callback(client, callback_query):
     app_name = callback_query.data.split(":")[1]
-    config = get_adc_config(app_name)
+    config = await get_adc_config(app_name)
 
     if config:
         repo = config["repo_url"]
@@ -743,7 +748,7 @@ async def adc_use_upstream_callback(client, callback_query):
     response = await app.listen(chat_id, timeout=300)
 
     if response.text in branches:
-        set_adc_config(app_name, upstream_repo, response.text)
+        await set_adc_config(app_name, upstream_repo, response.text)
         try:
             await prompt_msg.delete()
             await response.delete()
@@ -788,7 +793,7 @@ async def adc_use_external_callback(client, callback_query):
     branch_response = await app.listen(chat_id, timeout=300)
 
     if branch_response.text in branches:
-        set_adc_config(app_name, repo_url, branch_response.text)
+        await set_adc_config(app_name, repo_url, branch_response.text)
         try:
             await repo_prompt.delete()
             await repo_response.delete()
@@ -809,7 +814,7 @@ async def adc_use_external_callback(client, callback_query):
 @app.on_callback_query(filters.regex(r"^adc_execute:(.+)") & filters.sudo)
 async def adc_execute_callback(client, callback_query):
     app_name = callback_query.data.split(":")[1]
-    config = get_adc_config(app_name)
+    config = await get_adc_config(app_name)
 
     if not config:
         return await callback_query.answer("ADC Config not found!", show_alert=True)
