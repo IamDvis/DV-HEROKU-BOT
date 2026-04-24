@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from datetime import datetime, timedelta, timezone
 import socket
 
@@ -827,10 +828,17 @@ async def adc_execute_callback(client, callback_query):
     success = await redeploy_heroku_app(app_name, repo_url, branch)
     
     if success:
-        await callback_query.message.reply_text(
+        msg = await callback_query.message.reply_text(
             convert_to_small_caps(f"✅ **Deployment started successfully for** `{app_name}`!\n\n**Branch:** `{branch}`"),
             quote=True
         )
+        async def delete_msg():
+            await asyncio.sleep(30)
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+        asyncio.create_task(delete_msg())
     else:
         await callback_query.message.reply_text(
             convert_to_small_caps(f"❌ **Failed to start deployment for** `{app_name}`. Please check logs."),
