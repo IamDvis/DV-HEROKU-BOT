@@ -693,7 +693,7 @@ async def adc_setup_callback(client, callback_query):
         ],
     ]
     await callback_query.message.edit_text(
-        convert_to_small_caps("Select source for ADC 1-Click Re-Deploy:"),
+        convert_to_small_caps("ADC Settings Found!"),
         reply_markup=InlineKeyboardMarkup(buttons),
     )
 
