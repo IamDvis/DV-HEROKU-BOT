@@ -90,8 +90,8 @@ async def get_adc_config(app_name):
         async with session.get(url, headers=headers) as response:
             if response.status == 200:
                 data = await response.json()
-                repo = data.get("ADC_REPO")
-                branch = data.get("ADC_BRANCH")
+                repo = data.get("UPSTREAM_REPO")
+                branch = data.get("UPSTREAM_BRANCH")
                 if repo and branch:
                     return {"repo_url": repo, "branch": branch}
     return None
@@ -104,8 +104,8 @@ async def set_adc_config(app_name, repo_url, branch):
         "Content-Type": "application/json",
     }
     payload = {
-        "ADC_REPO": repo_url,
-        "ADC_BRANCH": branch
+        "UPSTREAM_REPO": repo_url,
+        "UPSTREAM_BRANCH": branch
     }
     async with aiohttp.ClientSession() as session:
         async with session.patch(url, headers=headers, json=payload) as response:
