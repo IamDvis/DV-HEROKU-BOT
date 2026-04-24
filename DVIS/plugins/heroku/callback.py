@@ -693,7 +693,7 @@ async def adc_setup_callback(client, callback_query):
         ],
     ]
     await callback_query.message.edit_text(
-        convert_to_small_caps("ADC Settings Found!"),
+        convert_to_small_caps("Select source for ADC 1-Click Re-Deploy:"),
         reply_markup=InlineKeyboardMarkup(buttons),
     )
 
@@ -723,11 +723,13 @@ async def adc_use_upstream_callback(client, callback_query):
 
     if response.text in branches:
         set_adc_config(app_name, upstream_repo, response.text)
-        await response.reply_text(
-            convert_to_small_caps(
-                f"✅ **ADC Config Saved!**\n\n**App:** `{app_name}`\n**Branch:** `{response.text}`\n\nYou can now use 1-click deploy."
-            )
-        )
+        try:
+            if hasattr(response, "request") and response.request:
+                await response.request.delete()
+            await response.delete()
+        except Exception:
+            pass
+        await adc_redeploy_callback(client, callback_query)
     else:
         await response.reply_text(convert_to_small_caps("Invalid branch name."))
 
@@ -758,11 +760,16 @@ async def adc_use_external_callback(client, callback_query):
 
     if branch_response.text in branches:
         set_adc_config(app_name, repo_url, branch_response.text)
-        await branch_response.reply_text(
-            convert_to_small_caps(
-                f"✅ **ADC Config Saved!**\n\n**App:** `{app_name}`\n**Repo:** `{repo_url}`\n**Branch:** `{branch_response.text}`"
-            )
-        )
+        try:
+            if hasattr(repo_response, "request") and repo_response.request:
+                await repo_response.request.delete()
+            await repo_response.delete()
+            if hasattr(branch_response, "request") and branch_response.request:
+                await branch_response.request.delete()
+            await branch_response.delete()
+        except Exception:
+            pass
+        await adc_redeploy_callback(client, callback_query)
     else:
         await branch_response.reply_text(convert_to_small_caps("Invalid branch name."))
 
