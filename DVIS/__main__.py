@@ -1,26 +1,15 @@
 import asyncio
-
-# Initialize event loop AT THE VERY TOP to avoid any different loop errors when importing pyromod/pyrogram
-try:
-    import uvloop
-    uvloop.install()
-except ImportError:
-    pass
-
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-
 import logging
 import importlib
 
+from DVIS import app, loop
 from pyrogram import idle
-from DVIS import app
 from DVIS.plugins import ALL_MODULES
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()]  # Output to console
+    handlers=[logging.StreamHandler()]
 )
 
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
