@@ -713,24 +713,27 @@ async def adc_use_upstream_callback(client, callback_query):
         return await callback_query.answer("No branches found!", show_alert=True)
 
     branch_list = "\n".join(branches)
-    response = await app.ask(
+    prompt_msg = await app.send_message(
         chat_id,
         convert_to_small_caps(
             f"**Available branches:**\n\n`{branch_list}`\n\nReply with the branch name to set for ADC."
-        ),
-        timeout=300,
+        )
     )
+    response = await app.listen(chat_id, timeout=300)
 
     if response.text in branches:
         set_adc_config(app_name, upstream_repo, response.text)
         try:
-            if hasattr(response, "request") and response.request:
-                await response.request.delete()
+            await prompt_msg.delete()
             await response.delete()
         except Exception:
             pass
         await adc_redeploy_callback(client, callback_query)
     else:
+        try:
+            await prompt_msg.delete()
+        except Exception:
+            pass
         await response.reply_text(convert_to_small_caps("Invalid branch name."))
 
 
@@ -740,37 +743,44 @@ async def adc_use_external_callback(client, callback_query):
     chat_id = callback_query.message.chat.id
     app_name = callback_query.data.split(":")[1]
 
-    repo_response = await app.ask(
-        chat_id, convert_to_small_caps("Please provide the External Repo URL."), timeout=300
+    repo_prompt = await app.send_message(
+        chat_id, convert_to_small_caps("Please provide the External Repo URL.")
     )
+    repo_response = await app.listen(chat_id, timeout=300)
     repo_url = repo_response.text
     branches = await fetch_repo_branches(repo_url)
 
     if not branches:
+        try:
+            await repo_prompt.delete()
+        except Exception:
+            pass
         return await repo_response.reply_text(convert_to_small_caps("Invalid repo or no branches found."))
 
     branch_list = "\n".join(branches)
-    branch_response = await app.ask(
+    branch_prompt = await app.send_message(
         chat_id,
         convert_to_small_caps(
             f"**Available branches:**\n\n`{branch_list}`\n\nReply with the branch name to set for ADC."
-        ),
-        timeout=300,
+        )
     )
+    branch_response = await app.listen(chat_id, timeout=300)
 
     if branch_response.text in branches:
         set_adc_config(app_name, repo_url, branch_response.text)
         try:
-            if hasattr(repo_response, "request") and repo_response.request:
-                await repo_response.request.delete()
+            await repo_prompt.delete()
             await repo_response.delete()
-            if hasattr(branch_response, "request") and branch_response.request:
-                await branch_response.request.delete()
+            await branch_prompt.delete()
             await branch_response.delete()
         except Exception:
             pass
         await adc_redeploy_callback(client, callback_query)
     else:
+        try:
+            await branch_prompt.delete()
+        except Exception:
+            pass
         await branch_response.reply_text(convert_to_small_caps("Invalid branch name."))
 
 
